@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iron Man — Stark Archives</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red: #c0392b;
+      --gold: #f0a500;
+      --dark: #090b0f;
+      --dark2: #0e1218;
+      --dark3: #131820;
+      --arc: #00d4ff;
+      --arc-glow: rgba(0,212,255,0.3);
+      --text: #c8cfd8;
+      --muted: #6a7485;
+      --border: rgba(240,165,0,0.22);
+    }
+
+    html, body { scroll-behavior: smooth; }
+
+    body {
+      background: var(--dark);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      overflow-x: hidden;
+      cursor: crosshair;
+    }
+
+    /* Scanlines overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px
+      );
+      pointer-events: none; z-index: 9000;
+    }
+
+    /* ── PAGE VIEWS ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── FLOATING PAGE-SWITCH BUTTONS ── */
+    #page-switcher {
+      position: fixed;
+      bottom: 2.5rem; right: 2.5rem;
+      z-index: 8000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      align-items: flex-end;
+    }
+
+    .switcher-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.65rem 1.3rem;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      border: 1px solid;
+      cursor: pointer;
+      transition: all 0.3s;
+      backdrop-filter: blur(10px);
+      white-space: nowrap;
+    }
+
+    .switcher-btn .btn-icon {
+      font-size: 0.9rem;
+      line-height: 1;
+    }
+
+    /* Home button — gold outline */
+    #btn-home {
+      background: rgba(9,11,15,0.85);
+      color: var(--gold);
+      border-color: var(--gold);
+    }
+    #btn-home:hover {
+      background: var(--gold);
+      color: #000;
+      box-shadow: 0 0 20px rgba(240,165,0,0.35);
+    }
+
+    /* Suits button — red outline */
+    #btn-suits {
+      background: rgba(9,11,15,0.85);
+      color: var(--red);
+      border-color: var(--red);
+    }
+    #btn-suits:hover {
+      background: var(--red);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(192,57,43,0.35);
+    }
+
+    /* Hide the button for the current active page */
+    #btn-home.hidden,
+    #btn-suits.hidden { display: none; }
+
+    /* ── SHARED UTILITIES ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(25px); }
+      to   { opacity: 1; transform: none; }
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; box-shadow: 0 0 6px var(--arc); }
+      50%      { opacity:.4; box-shadow: none; }
+    }
+    @keyframes spin  { to { transform: rotate(360deg); } }
+    @keyframes arcPulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.7; transform:scale(0.92); }
+    }
+
+    .reveal {
+      opacity: 0; transform: translateY(22px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    .hud-corner { position: absolute; width: 40px; height: 40px; }
+    .hud-corner::before, .hud-corner::after { content:''; position:absolute; background:var(--gold); }
+    .hud-corner::before { width:100%; height:1px; top:0; left:0; }
+    .hud-corner::after  { width:1px; height:100%; top:0; left:0; }
+    .hud-corner.tr { top:20px; right:20px; transform:rotate(90deg); }
+    .hud-corner.tl { top:20px; left:20px; }
+    .hud-corner.br { bottom:20px; right:20px; transform:rotate(180deg); }
+    .hud-corner.bl { bottom:20px; left:20px; transform:rotate(270deg); }
+
+    /* ═══════════════════════════════════════════
+       HOME PAGE STYLES
+    ═══════════════════════════════════════════ */
+
+    /* HERO */
+    .hero {
+      min-height: 100vh;
+      display: grid; grid-template-columns: 1fr 1fr;
+      align-items: center; padding: 0 6rem;
+      position: relative; overflow: hidden;
+    }
+
+    .hero-bg-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(240,165,0,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(240,165,0,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    .hero-ring {
+      position: absolute; right: -8rem; top: 50%;
+      transform: translateY(-50%);
+      width: 700px; height: 700px;
+      border-radius: 50%; border: 1px solid rgba(240,165,0,0.1);
+    }
+    .hero-ring2 {
+      position: absolute; right: -5rem; top: 50%;
+      transform: translateY(-50%);
+      width: 580px; height: 580px;
+      border-radius: 50%; border: 1px solid rgba(0,212,255,0.07);
+    }
+
+    .hero-content { position:relative; z-index:2; animation: fadeUp 1s ease both; }
+
+    .hero-eyebrow {
+      font-size:0.65rem; letter-spacing:0.4em;
+      color:var(--arc); text-transform:uppercase;
+      margin-bottom:1.2rem;
+      display:flex; align-items:center; gap:0.8rem;
+    }
+    .hero-eyebrow::before { content:''; display:block; width:40px; height:1px; background:var(--arc); }
+
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-weight:900; font-size: clamp(3rem, 6vw, 5.5rem);
+      line-height:0.95; text-transform:uppercase;
+    }
+    h1 .line-iron { color:var(--red); display:block; animation: fadeUp 1s 0.15s ease both; }
+    h1 .line-man  { color:var(--gold); display:block; animation: fadeUp 1s 0.3s ease both; }
+
+    .hero-tagline {
+      margin-top:1.8rem; font-size:0.85rem;
+      line-height:1.9; color:#8a94a6;
+      max-width:380px; animation: fadeUp 1s 0.45s ease both;
+    }
+
+    .hero-cta {
+      margin-top:2.5rem; display:flex; gap:1rem;
+      animation: fadeUp 1s 0.6s ease both;
+    }
+
+    .btn {
+      display:inline-block; padding:0.75rem 2rem;
+      font-family:'Orbitron',sans-serif;
+      font-size:0.7rem; letter-spacing:0.2em;
+      text-transform:uppercase; text-decoration:none;
+      transition:all 0.3s; border:1px solid; cursor:pointer;
+    }
+    .btn-primary { background:var(--red); color:#fff; border-color:var(--red); }
+    .btn-primary:hover { background:transparent; color:var(--red); box-shadow:0 0 20px rgba(192,57,43,0.4); }
+    .btn-secondary { background:transparent; color:var(--gold); border-color:var(--gold); }
+    .btn-secondary:hover { background:var(--gold); color:#000; }
+
+    .hero-visual {
+      position:relative; z-index:2;
+      display:flex; align-items:center; justify-content:center;
+      animation: fadeUp 1s 0.2s ease both;
+    }
+
+    .arc-reactor { position:relative; width:260px; height:260px; }
+    .arc-ring {
+      position:absolute; border-radius:50%;
+      border:1px solid; animation: spin linear infinite;
+    }
+    .arc-ring:nth-child(1) { inset:0; border-color:rgba(0,212,255,0.5); animation-duration:20s; }
+    .arc-ring:nth-child(2) { inset:20px; border-color:rgba(240,165,0,0.4); border-top-color:var(--gold); animation-duration:12s; animation-direction:reverse; }
+    .arc-ring:nth-child(3) { inset:40px; border-color:rgba(0,212,255,0.3); border-right-color:var(--arc); animation-duration:8s; }
+    .arc-ring:nth-child(4) { inset:60px; border-color:rgba(192,57,43,0.4); animation-duration:15s; animation-direction:reverse; }
+
+    .arc-core {
+      position:absolute; inset:85px; border-radius:50%;
+      background:radial-gradient(circle, #00d4ff 0%, rgba(0,212,255,0.4) 40%, transparent 70%);
+      box-shadow:0 0 30px var(--arc), 0 0 60px var(--arc-glow), 0 0 100px var(--arc-glow);
+      animation: arcPulse 3s ease-in-out infinite;
+    }
+
+    /* INTRO */
+    .intro {
+      padding:7rem 6rem; position:relative;
+      border-top:1px solid var(--border);
+    }
+    .section-label {
+      font-size:0.6rem; letter-spacing:0.5em;
+      color:var(--arc); text-transform:uppercase; margin-bottom:0.8rem;
+    }
+
+    .intro-grid {
+      display:grid; grid-template-columns:1fr 1fr;
+      gap:5rem; align-items:start; margin-top:3rem;
+    }
+    .intro-grid h2 {
+      font-family:'Orbitron',sans-serif;
+      font-size:clamp(1.5rem,3vw,2.5rem);
+      font-weight:700; color:#fff; line-height:1.2;
+    }
+    .intro-grid h2 em { font-style:normal; color:var(--gold); }
+    .intro-text p { font-size:0.88rem; line-height:2; color:#8a94a6; margin-bottom:1.2rem; }
+
+    .stat-row {
+      display:grid; grid-template-columns:repeat(3,1fr);
+      gap:1px; margin-top:3rem; border:1px solid var(--border);
+    }
+    .stat-item { padding:1.8rem 1.5rem; border-right:1px solid var(--border); }
+    .stat-item:last-child { border-right:none; }
+    .stat-number {
+      font-family:'Orbitron',sans-serif;
+      font-size:2.2rem; font-weight:900; color:var(--gold); display:block;
+    }
+    .stat-label { font-size:0.65rem; letter-spacing:0.2em; color:#5a6272; text-transform:uppercase; margin-top:0.3rem; }
+
+    /* FEATURES */
+    .features {
+      padding:7rem 6rem;
+      background:var(--dark2); border-top:1px solid var(--border);
+    }
+    .features-header {
+      display:flex; justify-content:space-between;
+      align-items:flex-end; margin-bottom:4rem;
+    }
+    .features-header h2 {
+      font-family:'Orbitron',sans-serif;
+      font-size:clamp(1.5rem,3vw,2.4rem); color:#fff; font-weight:700;
+    }
+    .features-header h2 span { color:var(--red); }
+    .features-header p { font-size:0.75rem; color:#5a6272; max-width:280px; text-align:right; line-height:1.8; }
+
+    .features-grid {
+      display:grid; grid-template-columns:repeat(3,1fr);
+      gap:1px; background:var(--border);
+    }
+    .feature-card {
+      background:var(--dark2); padding:2.5rem;
+      position:relative; transition:background 0.3s; overflow:hidden;
+    }
+    .feature-card::before {
+      content:''; position:absolute;
+      top:0; left:0; right:0; height:2px;
+      background:linear-gradient(90deg,var(--red),var(--gold));
+      transform:scaleX(0); transform-origin:left; transition:transform 0.4s;
+    }
+    .feature-card:hover { background:#111620; }
+    .feature-card:hover::before { transform:scaleX(1); }
+    .feature-icon {
+      width:48px; height:48px;
+      border:1px solid var(--border);
+      display:flex; align-items:center; justify-content:center;
+      margin-bottom:1.5rem; font-size:1.3rem; color:var(--gold);
+      transition:border-color 0.3s, box-shadow 0.3s;
+    }
+    .feature-card:hover .feature-icon { border-color:var(--gold); box-shadow:0 0 15px rgba(240,165,0,0.2); }
+    .feature-card h3 {
+      font-family:'Orbitron',sans-serif;
+      font-size:0.85rem; font-weight:700; color:#fff;
+      letter-spacing:0.1em; text-transform:uppercase; margin-bottom:1rem;
+    }
+    .feature-card p { font-size:0.8rem; line-height:1.9; color:#6a7485; }
+    .feature-tag {
+      display:inline-block; margin-top:1.2rem;
+      font-size:0.6rem; letter-spacing:0.2em; color:var(--arc);
+      border:1px solid rgba(0,212,255,0.25); padding:0.25rem 0.6rem; text-transform:uppercase;
+    }
+
+    /* HOME FOOTER */
+    .home-footer {
+      border-top:1px solid var(--border); padding:2rem 6rem;
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    .home-footer p { font-size:0.65rem; color:#3a4050; letter-spacing:0.15em; }
+
+    /* ═══════════════════════════════════════════
+       SUITS PAGE STYLES
+    ═══════════════════════════════════════════ */
+
+    .page-hero {
+      padding:8rem 6rem 5rem;
+      position:relative; overflow:hidden;
+      border-bottom:1px solid var(--border);
+    }
+    .page-hero-bg {
+      position:absolute; inset:0;
+      background-image:
+        linear-gradient(rgba(240,165,0,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(240,165,0,0.03) 1px, transparent 1px);
+      background-size:60px 60px;
+    }
+    .page-hero::after {
+      content:''; position:absolute;
+      right:0; top:0; width:500px; height:100%;
+      background:linear-gradient(135deg, transparent 50%, rgba(192,57,43,0.04) 50%);
+    }
+    .page-hero-content { position:relative; z-index:2; max-width:700px; }
+
+    .page-eyebrow {
+      font-size:0.65rem; letter-spacing:0.4em;
+      color:var(--arc); text-transform:uppercase;
+      margin-bottom:1.2rem;
+      display:flex; align-items:center; gap:0.8rem;
+      animation: fadeUp 0.8s ease both;
+    }
+    .page-eyebrow::before { content:''; display:block; width:40px; height:1px; background:var(--arc); }
+
+    .page-hero h1 {
+      font-family:'Orbitron',sans-serif; font-weight:900;
+      font-size:clamp(2.5rem,5vw,4.5rem);
+      line-height:1; text-transform:uppercase; color:#fff;
+      animation: fadeUp 0.8s 0.1s ease both;
+    }
+    .page-hero h1 em { font-style:normal; color:var(--gold); }
+
+    .page-hero > .page-hero-content > p {
+      margin-top:1.5rem; font-size:0.85rem;
+      line-height:1.9; color:var(--muted); max-width:520px;
+      animation: fadeUp 0.8s 0.2s ease both;
+    }
+
+    .filter-bar {
+      display:flex; gap:0.5rem; margin-top:2.5rem;
+      animation: fadeUp 0.8s 0.3s ease both;
+    }
+    .filter-btn {
+      padding:0.4rem 1.2rem;
+      font-family:'Share Tech Mono',monospace;
+      font-size:0.65rem; letter-spacing:0.2em;
+      text-transform:uppercase; cursor:pointer;
+      border:1px solid var(--border);
+      background:transparent; color:var(--muted);
+      transition:all 0.25s;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      border-color:var(--gold); color:var(--gold);
+      background:rgba(240,165,0,0.05);
+    }
+
+    /* SUITS GRID */
+    .suits-section { padding:5rem 6rem 7rem; }
+
+    .section-meta {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:3rem; padding-bottom:1rem; border-bottom:1px solid var(--border);
+    }
+    .section-count { font-size:0.65rem; color:var(--muted); letter-spacing:0.15em; }
+
+    .suits-grid {
+      display:grid; grid-template-columns:repeat(3,1fr);
+      gap:1px; background:var(--border);
+    }
+
+    .suit-card {
+      background:var(--dark2); position:relative;
+      overflow:hidden; transition:background 0.3s; cursor:pointer;
+    }
+    .suit-card:hover { background:var(--dark3); }
+    .suit-card::before {
+      content:''; position:absolute;
+      top:0; left:0; right:0; height:2px;
+      background:linear-gradient(90deg,var(--red),var(--gold));
+      transform:scaleX(0); transform-origin:left; transition:transform 0.4s; z-index:2;
+    }
+    .suit-card:hover::before { transform:scaleX(1); }
+
+    .card-visual {
+      position:relative; height:200px;
+      background:var(--dark);
+      display:flex; align-items:center; justify-content:center; overflow:hidden;
+    }
+    .suit-card[data-suit="1"] .card-visual { background:radial-gradient(ellipse at 50% 80%, rgba(80,80,80,0.3) 0%, transparent 70%); }
+    .suit-card[data-suit="2"] .card-visual { background:radial-gradient(ellipse at 50% 80%, rgba(192,57,43,0.2) 0%, transparent 70%); }
+    .suit-card[data-suit="3"] .card-visual { background:radial-gradient(ellipse at 50% 80%, rgba(192,57,43,0.18) 0%, transparent 70%); }
+    .suit-card[data-suit="4"] .card-visual { background:radial-gradient(ellipse at 50% 80%, rgba(240,165,0,0.18) 0%, transparent 70%); }
+    .suit-card[data-suit="5"] .card-visual { background:radial-gradient(ellipse at 50% 80%, rgba(0,150,255,0.15) 0%, transparent 70%); }
+    .suit-card[data-suit="6"] .card-visual { background:radial-gradient(ellipse at 50% 80%, rgba(0,212,255,0.15) 0%, transparent 70%); }
+    .suit-card[data-suit="7"] .card-visual { background:radial-gradient(ellipse at 50% 80%, rgba(220,200,150,0.15) 0%, transparent 70%); }
+    .suit-card[data-suit="8"] .card-visual { background:radial-gradient(ellipse at 50% 80%, rgba(192,57,43,0.22) 0%, transparent 70%); }
+    .suit-card[data-suit="9"] .card-visual { background:radial-gradient(ellipse at 50% 80%, rgba(0,212,255,0.2) 0%, transparent 70%); }
+
+    .suit-silhouette { position:relative; width:80px; height:130px; }
+    .suit-silhouette::before {
+      content:''; position:absolute;
+      top:0; left:50%; transform:translateX(-50%);
+      width:50px; height:55px;
+      border-radius:50% 50% 20% 20%;
+      background:currentColor; opacity:0.7;
+    }
+    .suit-silhouette::after {
+      content:''; position:absolute;
+      bottom:0; left:50%; transform:translateX(-50%);
+      width:64px; height:80px;
+      border-radius:8px 8px 14px 14px;
+      background:currentColor; opacity:0.5;
+    }
+
+    .suit-reactor {
+      position:absolute; top:72px; left:50%; transform:translateX(-50%);
+      width:14px; height:14px; border-radius:50%;
+      background:var(--arc);
+      box-shadow:0 0 12px var(--arc), 0 0 24px var(--arc-glow);
+      z-index:2; animation: arcPulse 3s ease-in-out infinite;
+    }
+
+    .card-mark {
+      position:absolute; top:1rem; left:1rem;
+      font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700;
+      color:var(--gold); letter-spacing:0.2em;
+      border:1px solid rgba(240,165,0,0.3); padding:0.2rem 0.5rem; z-index:3;
+    }
+
+    .card-status {
+      position:absolute; top:1rem; right:1rem;
+      font-size:0.55rem; letter-spacing:0.15em;
+      text-transform:uppercase; z-index:3;
+      display:flex; align-items:center; gap:0.35rem;
+    }
+    .card-status-dot { width:5px; height:5px; border-radius:50%; }
+    .status-active  .card-status-dot { background:#2ecc71; box-shadow:0 0 6px #2ecc71; }
+    .status-retired .card-status-dot { background:var(--muted); }
+    .status-destroyed .card-status-dot { background:var(--red); }
+    .status-active   { color:#2ecc71; }
+    .status-retired  { color:var(--muted); }
+    .status-destroyed { color:var(--red); }
+
+    .card-body { padding:1.8rem 2rem 2rem; }
+    .card-body h3 {
+      font-family:'Orbitron',sans-serif; font-size:1rem; font-weight:700;
+      color:#fff; letter-spacing:0.05em; margin-bottom:0.5rem;
+    }
+    .card-body .card-year { font-size:0.6rem; color:var(--muted); letter-spacing:0.2em; margin-bottom:1rem; }
+    .card-body p { font-size:0.78rem; line-height:1.85; color:#6a7485; margin-bottom:1.5rem; }
+
+    .card-stats { display:flex; gap:0.5rem; flex-wrap:wrap; }
+    .card-stat {
+      font-size:0.58rem; letter-spacing:0.15em;
+      text-transform:uppercase; padding:0.25rem 0.7rem; border:1px solid;
+    }
+    .stat-speed   { color:#f0a500; border-color:rgba(240,165,0,0.3); }
+    .stat-armor   { color:#c0392b; border-color:rgba(192,57,43,0.3); }
+    .stat-power   { color:#00d4ff; border-color:rgba(0,212,255,0.3); }
+    .stat-stealth { color:#9b59b6; border-color:rgba(155,89,182,0.3); }
+    .stat-ai      { color:#2ecc71; border-color:rgba(46,204,113,0.3); }
+
+    .suit-card.featured { grid-column:span 2; }
+    .suit-card.featured .card-visual { height:240px; }
+    .suit-card.featured .card-body {
+      display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;
+    }
+    .suit-card.featured .card-body .col-left h3 { font-size:1.3rem; }
+    .suit-card.featured .card-body .col-right p { font-size:0.8rem; line-height:1.9; color:#6a7485; }
+
+    /* HIGHLIGHT BANNER */
+    .highlight-banner {
+      margin:0 6rem;
+      padding:2.5rem 3rem;
+      border:1px solid var(--border); background:var(--dark2);
+      display:grid; grid-template-columns:auto 1fr auto;
+      align-items:center; gap:3rem;
+      position:relative; overflow:hidden;
+    }
+    .highlight-banner::before {
+      content:''; position:absolute;
+      left:0; top:0; bottom:0; width:3px;
+      background:linear-gradient(180deg,var(--red),var(--gold));
+    }
+    .hl-label {
+      font-family:'Orbitron',sans-serif; font-size:0.6rem;
+      letter-spacing:0.3em; color:var(--gold); text-transform:uppercase;
+      writing-mode:vertical-rl; transform:rotate(180deg);
+    }
+    .hl-content h3 { font-family:'Orbitron',sans-serif; font-size:1.1rem; color:#fff; font-weight:700; margin-bottom:0.6rem; }
+    .hl-content p  { font-size:0.8rem; color:var(--muted); line-height:1.8; max-width:600px; }
+    .hl-stat { text-align:right; }
+    .hl-stat .big  { font-family:'Orbitron',sans-serif; font-size:3rem; font-weight:900; color:var(--gold); line-height:1; }
+    .hl-stat .small { font-size:0.6rem; letter-spacing:0.2em; color:var(--muted); text-transform:uppercase; margin-top:0.3rem; }
+
+    /* SPECS TABLE */
+    .specs-section { padding:5rem 6rem 7rem; border-top:1px solid var(--border); }
+    .specs-header { margin-bottom:2.5rem; }
+    .specs-header h2 { font-family:'Orbitron',sans-serif; font-size:clamp(1.3rem,2.5vw,2rem); color:#fff; font-weight:700; }
+    .specs-header h2 span { color:var(--red); }
+    .specs-header p { font-size:0.75rem; color:var(--muted); margin-top:0.5rem; letter-spacing:0.1em; }
+
+    table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+    thead tr { border-bottom:1px solid var(--border); }
+    th {
+      font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:0.2em;
+      text-transform:uppercase; color:var(--gold);
+      padding:1rem 1.2rem; text-align:left; font-weight:700;
+    }
+    tbody tr { border-bottom:1px solid rgba(240,165,0,0.08); transition:background 0.2s; }
+    tbody tr:hover { background:rgba(240,165,0,0.03); }
+    td { padding:1rem 1.2rem; color:var(--muted); vertical-align:middle; }
+    td.mark-id { font-family:'Orbitron',sans-serif; color:var(--gold); font-size:0.75rem; font-weight:700; }
+    td.suit-name { color:#fff; }
+
+    .bar-wrap { width:100%; height:4px; background:rgba(255,255,255,0.06); position:relative; overflow:hidden; }
+    .bar-fill {
+      position:absolute; left:0; top:0; bottom:0;
+      background:linear-gradient(90deg,var(--red),var(--gold));
+      transition:width 1s ease;
+    }
+
+    .badge { display:inline-block; font-size:0.55rem; letter-spacing:0.15em; text-transform:uppercase; padding:0.2rem 0.5rem; }
+    .badge-active    { color:#2ecc71; border:1px solid rgba(46,204,113,0.35); }
+    .badge-retired   { color:var(--muted); border:1px solid rgba(106,116,133,0.35); }
+    .badge-destroyed { color:var(--red);   border:1px solid rgba(192,57,43,0.35); }
+
+    /* SUITS FOOTER */
+    .suits-footer {
+      border-top:1px solid var(--border); padding:2rem 6rem;
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    .suits-footer p { font-size:0.65rem; color:#3a4050; letter-spacing:0.15em; }
+
+    /* Page transition */
+    .page { animation: fadeUp 0.5s ease both; }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE — TABLET  (≤ 900px)
+    ═══════════════════════════════════════════ */
+    @media (max-width: 900px) {
+
+      /* Floating buttons — smaller */
+      #page-switcher { bottom: 1.5rem; right: 1.5rem; }
+      .switcher-btn  { padding: 0.55rem 1rem; font-size: 0.6rem; }
+
+      /* ── HOME ── */
+      .hero {
+        grid-template-columns: 1fr;
+        padding: 6rem 3rem 4rem;
+        min-height: auto;
+        text-align: center;
+      }
+      .hero-eyebrow { justify-content: center; }
+      .hero-tagline { max-width: 100%; margin-left: auto; margin-right: auto; }
+      .hero-cta     { justify-content: center; }
+      .hero-visual  { margin-top: 3rem; }
+      .hero-ring, .hero-ring2 { display: none; }
+
+      .intro        { padding: 5rem 3rem; }
+      .intro-grid   { grid-template-columns: 1fr; gap: 2.5rem; }
+      .stat-row     { grid-template-columns: repeat(3, 1fr); }
+
+      .features     { padding: 5rem 3rem; }
+      .features-header { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
+      .features-header p { text-align: left; max-width: 100%; }
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+
+      .home-footer  { padding: 1.5rem 3rem; flex-direction: column; gap: 0.5rem; text-align: center; }
+
+      /* ── SUITS ── */
+      .page-hero    { padding: 6rem 3rem 4rem; }
+      .highlight-banner {
+        margin: 0 3rem;
+        grid-template-columns: 1fr;
+        gap: 1.2rem;
+      }
+      .hl-label     { writing-mode: horizontal-tb; transform: none; }
+      .hl-stat      { text-align: left; }
+
+      .suits-section { padding: 4rem 3rem 5rem; }
+      .suits-grid   { grid-template-columns: repeat(2, 1fr); }
+      .suit-card.featured { grid-column: span 2; }
+      .suit-card.featured .card-body { grid-template-columns: 1fr; gap: 0; }
+
+      .specs-section { padding: 4rem 3rem 5rem; }
+      /* Scroll table horizontally on tablet */
+      .specs-section { overflow-x: auto; }
+      table { min-width: 600px; }
+
+      .suits-footer { padding: 1.5rem 3rem; flex-direction: column; gap: 0.5rem; text-align: center; }
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE — MOBILE  (≤ 580px)
+    ═══════════════════════════════════════════ */
+    @media (max-width: 580px) {
+
+      /* Buttons — icon-only on very small screens */
+      #page-switcher { bottom: 1.2rem; right: 1.2rem; gap: 0.5rem; }
+      .switcher-btn  { padding: 0.6rem 0.9rem; gap: 0.4rem; font-size: 0.55rem; letter-spacing: 0.1em; }
+
+      /* ── HOME ── */
+      .hero { padding: 5rem 1.5rem 3rem; }
+      .hud-corner { display: none; }
+
+      h1 { font-size: clamp(2.6rem, 12vw, 3.5rem); }
+
+      .hero-cta { flex-direction: column; align-items: center; }
+      .btn      { width: 100%; text-align: center; padding: 0.85rem 1rem; }
+
+      .arc-reactor { width: 180px; height: 180px; }
+      .arc-core    { inset: 58px; }
+
+      .intro  { padding: 3.5rem 1.5rem; }
+      .stat-row { grid-template-columns: 1fr; }
+      .stat-item { border-right: none; border-bottom: 1px solid var(--border); }
+      .stat-item:last-child { border-bottom: none; }
+
+      .features { padding: 3.5rem 1.5rem; }
+      .features-grid { grid-template-columns: 1fr; }
+
+      .home-footer { padding: 1.2rem 1.5rem; }
+
+      /* ── SUITS ── */
+      .page-hero { padding: 5rem 1.5rem 3rem; }
+      .filter-bar { flex-wrap: wrap; }
+      .filter-btn { flex: 1 1 calc(50% - 0.25rem); text-align: center; }
+
+      .highlight-banner { margin: 0 1.5rem; padding: 1.8rem 1.5rem; }
+      .hl-stat .big { font-size: 2rem; }
+
+      .suits-section { padding: 3rem 1.5rem 4rem; }
+      .suits-grid { grid-template-columns: 1fr; }
+      .suit-card.featured { grid-column: span 1; }
+      .suit-card.featured .card-body { grid-template-columns: 1fr; gap: 0; }
+      .suit-card.featured .card-visual { height: 200px; }
+
+      .specs-section { padding: 3rem 1.5rem 4rem; }
+
+      .suits-footer { padding: 1.2rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════ HOME PAGE ═══════════════════════════════ -->
+  <div id="page-home" class="page active">
+
+    <section class="hero">
+      <div class="hero-bg-grid"></div>
+      <div class="hero-ring"></div>
+      <div class="hero-ring2"></div>
+      <div class="hud-corner tl"></div>
+      <div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div>
+      <div class="hud-corner br"></div>
+
+      <div class="hero-content">
+        <div class="hero-eyebrow">Stark Industries // Mark L</div>
+        <h1>
+          <span class="line-iron">Iron</span>
+          <span class="line-man">Man</span>
+        </h1>
+        <p class="hero-tagline">
+          Genius. Billionaire. Philanthropist. Inside the suit of armor that changed
+          the world — forged from nothing but ingenuity and a will to survive.
+        </p>
+        <div class="hero-cta">
+          <a href="#about" class="btn btn-primary">Meet Stark</a>
+          <a href="#features" class="btn btn-secondary">View Suit</a>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="arc-reactor">
+          <div class="arc-ring"></div>
+          <div class="arc-ring"></div>
+          <div class="arc-ring"></div>
+          <div class="arc-ring"></div>
+          <div class="arc-core"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="intro" id="about">
+      <div class="section-label">// Identity File</div>
+      <div class="intro-grid">
+        <div>
+          <h2>The man behind<br/>the <em>legend.</em></h2>
+          <div class="stat-row reveal">
+            <div class="stat-item">
+              <span class="stat-number">3000+</span>
+              <span class="stat-label">IQ Estimate</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-number">85+</span>
+              <span class="stat-label">Suit Variants</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-number">Mk. L</span>
+              <span class="stat-label">Current Model</span>
+            </div>
+          </div>
+        </div>
+        <div class="intro-text reveal">
+          <p>Anthony Edward Stark — engineer, inventor, and founding member of the Avengers — built his first suit of armor in a cave with only scraps and a box of spare parts. What started as an escape mechanism became the most sophisticated combat system ever devised.</p>
+          <p>Powered by the Arc Reactor, the Iron Man suit is not merely a weapon. It is an extension of Stark himself: adaptive, intelligent, and relentlessly evolving. Each iteration represents a new response to a new threat — refined through failure, sharpened by necessity.</p>
+          <p>From the crude Mark I to the nanotech-infused Mark L, the Iron Man legacy is one of transformation. Not just of metal — but of a man who chose, again and again, to be more than what the world asked of him.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="features" id="features">
+      <div class="features-header reveal">
+        <h2>Suit <span>Capabilities</span></h2>
+        <p>Mark L technical specifications — nanite-based construction. Active configuration.</p>
+      </div>
+      <div class="features-grid">
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">⚡</div>
+          <h3>Arc Reactor Core</h3>
+          <p>A miniaturized fusion reactor generating 3 gigajoules per second. The heart of the suit — and of Tony Stark — providing virtually unlimited clean energy to all subsystems.</p>
+          <span class="feature-tag">Power Source</span>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🛡</div>
+          <h3>Nanoparticle Armor</h3>
+          <p>Mark L deploys from a chest-mounted housing via nanotechnology, forming a full suit of titanium-gold alloy plating in under 3 seconds. Can reconfigure mid-combat.</p>
+          <span class="feature-tag">Defense System</span>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🎯</div>
+          <h3>Repulsor Beams</h3>
+          <p>Palm-mounted repulsor arrays capable of projecting focused plasma bursts. Output ranges from precise surgical strikes to wide-area suppression blasts.</p>
+          <span class="feature-tag">Offensive Array</span>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🧠</div>
+          <h3>J.A.R.V.I.S. Interface</h3>
+          <p>An advanced AI assistant integrated directly into the HUD, providing real-time tactical analysis, threat assessment, environmental scanning, and systems management.</p>
+          <span class="feature-tag">AI Integration</span>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🚀</div>
+          <h3>Supersonic Flight</h3>
+          <p>Twin boot-mounted and palm repulsor thrusters enable speeds exceeding Mach 3. Altitude ceiling of 100,000+ feet with independent life support systems active.</p>
+          <span class="feature-tag">Mobility</span>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">📡</div>
+          <h3>Stealth &amp; Scan Mode</h3>
+          <p>Active camouflage panels reduce radar cross-section to near zero. Long-range multi-spectrum sensors detect threats across visual, thermal, and electromagnetic bands.</p>
+          <span class="feature-tag">Intelligence</span>
+        </div>
+
+      </div>
+    </section>
+
+    <footer class="home-footer">
+      <p>© STARK INDUSTRIES // CLASSIFIED // FOR AUTHORIZED USE ONLY</p>
+      <p>MARK L — NANOTECHNOLOGY ARMOR SYSTEM</p>
+    </footer>
+
+  </div><!-- /page-home -->
+
+  <!-- ═══════════════════════════════ SUITS PAGE ═══════════════════════════════ -->
+  <div id="page-suits" class="page">
+
+    <header class="page-hero">
+      <div class="page-hero-bg"></div>
+      <div class="hud-corner tl"></div>
+      <div class="hud-corner tr"></div>
+      <div class="page-hero-content">
+        <div class="page-eyebrow">Stark Archives // Armor Registry</div>
+        <h1>The <em>Suit</em><br/>Archive</h1>
+        <p>Every iteration of the Iron Man armor — from the crude Mark I built in captivity to the nanotech-infused Mark L. Each suit is a chapter in Tony Stark's relentless pursuit of perfection.</p>
+        <div class="filter-bar">
+          <button class="filter-btn active" data-filter="all">All Suits</button>
+          <button class="filter-btn" data-filter="active">Active</button>
+          <button class="filter-btn" data-filter="retired">Retired</button>
+          <button class="filter-btn" data-filter="destroyed">Destroyed</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="highlight-banner reveal">
+      <span class="hl-label">Current</span>
+      <div class="hl-content">
+        <h3>Mark L — Bleeding Edge Nanotechnology</h3>
+        <p>The most advanced armor Tony Stark ever designed. Constructed from self-assembling nanoparticles stored in the Arc Reactor housing, the Mark L can form any configuration on demand — weapons, shields, extra mass — in real time, without a lab.</p>
+      </div>
+      <div class="hl-stat">
+        <div class="big">50</div>
+        <div class="small">Mark Number</div>
+      </div>
+    </div>
+
+    <section class="suits-section">
+      <div class="section-meta reveal">
+        <span class="section-label">// Armor Registry</span>
+        <span class="section-count">Displaying 9 of 85+ Documented Suits</span>
+      </div>
+      <div class="suits-grid">
+
+        <div class="suit-card featured reveal" data-suit="1" data-status="destroyed">
+          <div class="card-visual">
+            <div class="suit-silhouette" style="color:#888;"></div>
+            <div class="suit-reactor"></div>
+            <span class="card-mark">MK. I</span>
+            <span class="card-status status-destroyed"><span class="card-status-dot"></span> Destroyed</span>
+          </div>
+          <div class="card-body">
+            <div class="col-left">
+              <h3>Mark I</h3>
+              <div class="card-year">// 2008 — Gulmira, Afghanistan</div>
+              <div class="card-stats">
+                <span class="card-stat stat-armor">Crude Armor</span>
+                <span class="card-stat stat-power">Flamethrower</span>
+              </div>
+            </div>
+            <div class="col-right">
+              <p>Built entirely from salvaged Stark Industries weapon parts inside an Afghan cave, the Mark I was not a suit — it was a declaration. Crude, heavy, and barely functional, it gave Tony Stark the only thing that mattered: a way out.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="suit-card reveal" data-suit="2" data-status="retired">
+          <div class="card-visual">
+            <div class="suit-silhouette" style="color:#c0392b;"></div>
+            <div class="suit-reactor"></div>
+            <span class="card-mark">MK. III</span>
+            <span class="card-status status-retired"><span class="card-status-dot"></span> Retired</span>
+          </div>
+          <div class="card-body">
+            <h3>Mark III</h3>
+            <div class="card-year">// 2008 — First Combat Deployment</div>
+            <p>The iconic red and gold color scheme debuts here. First suit capable of sustained flight, equipped with repulsor beams and a full weapons array. Took on Obadiah Stane's Iron Monger.</p>
+            <div class="card-stats">
+              <span class="card-stat stat-speed">Mach 2</span>
+              <span class="card-stat stat-armor">Titanium</span>
+              <span class="card-stat stat-power">Repulsors</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="suit-card reveal" data-suit="3" data-status="retired">
+          <div class="card-visual">
+            <div class="suit-silhouette" style="color:#c0392b;"></div>
+            <div class="suit-reactor"></div>
+            <span class="card-mark">MK. VI</span>
+            <span class="card-status status-retired"><span class="card-status-dot"></span> Retired</span>
+          </div>
+          <div class="card-body">
+            <h3>Mark VI</h3>
+            <div class="card-year">// 2010 — Expo Battle</div>
+            <p>Upgraded Arc Reactor running on a newly synthesized element, replacing the toxic palladium core. Tri-beam chest repulsor. Defeated Whiplash's drones at the Expo.</p>
+            <div class="card-stats">
+              <span class="card-stat stat-power">Tri-Beam</span>
+              <span class="card-stat stat-armor">Enhanced</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="suit-card reveal" data-suit="4" data-status="retired">
+          <div class="card-visual">
+            <div class="suit-silhouette" style="color:#c0392b;"></div>
+            <div class="suit-reactor"></div>
+            <span class="card-mark">MK. VII</span>
+            <span class="card-status status-retired"><span class="card-status-dot"></span> Retired</span>
+          </div>
+          <div class="card-body">
+            <h3>Mark VII</h3>
+            <div class="card-year">// 2012 — Battle of New York</div>
+            <p>First suit to deploy via a tracking bracelet without needing JARVIS to assemble it manually. Flew Tony through a wormhole carrying a nuclear warhead — and brought him back.</p>
+            <div class="card-stats">
+              <span class="card-stat stat-speed">Mach 3</span>
+              <span class="card-stat stat-power">Bracelet Deploy</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="suit-card featured reveal" data-suit="5" data-status="destroyed">
+          <div class="card-visual">
+            <div class="suit-silhouette" style="color:#1a6abf;"></div>
+            <div class="suit-reactor"></div>
+            <span class="card-mark">MK. XLII</span>
+            <span class="card-status status-destroyed"><span class="card-status-dot"></span> Destroyed</span>
+          </div>
+          <div class="card-body">
+            <div class="col-left">
+              <h3>Mark XLII</h3>
+              <div class="card-year">// 2013 — Extremis Crisis</div>
+              <div class="card-stats">
+                <span class="card-stat stat-ai">Remote Pilot</span>
+                <span class="card-stat stat-speed">Modular</span>
+              </div>
+            </div>
+            <div class="col-right">
+              <p>The first suit with subcutaneous implants allowing telepathic deployment. Experimental and unstable, destroyed during the "Clean Slate" protocol along with the entire Hall of Armors.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="suit-card reveal" data-suit="6" data-status="retired">
+          <div class="card-visual">
+            <div class="suit-silhouette" style="color:#c0392b; transform:scale(1.3);"></div>
+            <div class="suit-reactor"></div>
+            <span class="card-mark">MK. XLIV</span>
+            <span class="card-status status-retired"><span class="card-status-dot"></span> Retired</span>
+          </div>
+          <div class="card-body">
+            <h3>Hulkbuster</h3>
+            <div class="card-year">// 2015 — Johannesburg</div>
+            <p>A supplementary suit layered over existing armor — "Veronica" — designed specifically to contain and subdue the Hulk. Self-repairing modular sections. One of the heaviest armors ever built.</p>
+            <div class="card-stats">
+              <span class="card-stat stat-armor">Heavy Plating</span>
+              <span class="card-stat stat-power">Max Output</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="suit-card reveal" data-suit="7" data-status="retired">
+          <div class="card-visual">
+            <div class="suit-silhouette" style="color:#d4b483;"></div>
+            <div class="suit-reactor"></div>
+            <span class="card-mark">MK. XLVI</span>
+            <span class="card-status status-retired"><span class="card-status-dot"></span> Retired</span>
+          </div>
+          <div class="card-body">
+            <h3>Mark XLVI</h3>
+            <div class="card-year">// 2016 — Civil War</div>
+            <p>Deployed during the Avengers civil conflict. Fought Captain America and the Winter Soldier in Siberia. Built-in carbon fiber nanite mesh for faster field repairs between encounters.</p>
+            <div class="card-stats">
+              <span class="card-stat stat-armor">Nanite Mesh</span>
+              <span class="card-stat stat-ai">FRIDAY AI</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="suit-card reveal" data-suit="8" data-status="retired">
+          <div class="card-visual">
+            <div class="suit-silhouette" style="color:#c0392b;"></div>
+            <div class="suit-reactor"></div>
+            <span class="card-mark">MK. XLVII</span>
+            <span class="card-status status-retired"><span class="card-status-dot"></span> Retired</span>
+          </div>
+          <div class="card-body">
+            <h3>Mark XLVII</h3>
+            <div class="card-year">// 2017 — Staten Island Ferry</div>
+            <p>Enhanced stealth mode and improved underwater operability. Assisted Spider-Man during the Vulture conflict. First suit with a dedicated AI-driven threat prediction matrix.</p>
+            <div class="card-stats">
+              <span class="card-stat stat-stealth">Stealth Mode</span>
+              <span class="card-stat stat-ai">Threat AI</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="suit-card reveal" data-suit="9" data-status="active">
+          <div class="card-visual">
+            <div class="suit-silhouette" style="color:#00d4ff;"></div>
+            <div class="suit-reactor"></div>
+            <span class="card-mark">MK. L</span>
+            <span class="card-status status-active"><span class="card-status-dot"></span> Active</span>
+          </div>
+          <div class="card-body">
+            <h3>Mark L</h3>
+            <div class="card-year">// 2018 — Infinity War</div>
+            <p>The pinnacle of Stark engineering. Fully nanotechnology-based, deploying from a chest-mounted housing. Can form any weapon or structure on demand. Battled Thanos on Titan.</p>
+            <div class="card-stats">
+              <span class="card-stat stat-power">Nano-tech</span>
+              <span class="card-stat stat-speed">Mach 3+</span>
+              <span class="card-stat stat-ai">FRIDAY AI</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="specs-section">
+      <div class="specs-header reveal">
+        <h2>Suit <span>Comparison</span> Matrix</h2>
+        <p>// Relative performance metrics — normalized to Mark L baseline</p>
+      </div>
+      <table id="specs-table">
+        <thead>
+          <tr>
+            <th>Mark</th><th>Designation</th>
+            <th>Speed</th><th>Armor Rating</th><th>Power Output</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="reveal">
+            <td class="mark-id">MK. I</td><td class="suit-name">Cave Armor</td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="8%"  style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="12%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="5%"  style="width:0"></div></div></td>
+            <td><span class="badge badge-destroyed">Destroyed</span></td>
+          </tr>
+          <tr class="reveal">
+            <td class="mark-id">MK. III</td><td class="suit-name">First Combat Suit</td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="38%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="42%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="35%" style="width:0"></div></div></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+          </tr>
+          <tr class="reveal">
+            <td class="mark-id">MK. VI</td><td class="suit-name">New Element Core</td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="52%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="55%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="60%" style="width:0"></div></div></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+          </tr>
+          <tr class="reveal">
+            <td class="mark-id">MK. VII</td><td class="suit-name">Avengers Suit</td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="60%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="62%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="65%" style="width:0"></div></div></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+          </tr>
+          <tr class="reveal">
+            <td class="mark-id">MK. XLIV</td><td class="suit-name">Hulkbuster</td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="40%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="95%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="98%" style="width:0"></div></div></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+          </tr>
+          <tr class="reveal">
+            <td class="mark-id">MK. XLVI</td><td class="suit-name">Civil War Armor</td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="75%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="78%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="74%" style="width:0"></div></div></td>
+            <td><span class="badge badge-retired">Retired</span></td>
+          </tr>
+          <tr class="reveal">
+            <td class="mark-id">MK. L</td><td class="suit-name">Bleeding Edge</td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="100%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="100%" style="width:0"></div></div></td>
+            <td><div class="bar-wrap"><div class="bar-fill" data-w="100%" style="width:0"></div></div></td>
+            <td><span class="badge badge-active">Active</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="suits-footer">
+      <p>© STARK INDUSTRIES // CLASSIFIED // FOR AUTHORIZED USE ONLY</p>
+      <p>ARMOR ARCHIVE — 85+ DOCUMENTED SUITS</p>
+    </footer>
+
+  </div><!-- /page-suits -->
+
+  <!-- ═══════════════ FLOATING PAGE SWITCHER BUTTONS ═══════════════ -->
+  <div id="page-switcher">
+    <button class="switcher-btn" id="btn-home"  onclick="showPage('home')">
+      <span class="btn-icon">⌂</span> Home
+    </button>
+    <button class="switcher-btn" id="btn-suits" onclick="showPage('suits')">
+      <span class="btn-icon">⚙</span> Suit Archive
+    </button>
+  </div>
+
+  <script>
+    // ── SMOOTH SCROLL HELPER ──
+    // Uses window.scrollTo with 'smooth' so it works across all browsers
+    // regardless of page-switch display toggling.
+    function smoothScrollTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function smoothScrollTo(el) {
+      const y = el.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+
+    // ── PAGE SWITCHING ──
+    function showPage(name) {
+      // Swap active page
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      const target = document.getElementById('page-' + name);
+      target.classList.add('active');
+
+      // Smooth scroll to top
+      smoothScrollTop();
+
+      // Toggle button visibility
+      document.getElementById('btn-home').classList.toggle('hidden',  name === 'home');
+      document.getElementById('btn-suits').classList.toggle('hidden', name === 'suits');
+
+      // Reset and re-trigger reveal animations
+      target.querySelectorAll('.reveal').forEach(el => el.classList.remove('visible'));
+      setTimeout(() => attachReveal(target), 80);
+
+      // Animate table bars when entering suits page
+      if (name === 'suits') {
+        setTimeout(animateBars, 450);
+      }
+    }
+
+    // ── SCROLL REVEAL ──
+    function attachReveal(root) {
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach((entry, i) => {
+          if (entry.isIntersecting) {
+            setTimeout(() => entry.target.classList.add('visible'), i * 80);
+          }
+        });
+      }, { threshold: 0.12 });
+      root.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+    }
+
+    // Init reveal for home page on load
+    attachReveal(document.getElementById('page-home'));
+
+    // Hide home button on load (we start on home)
+    document.getElementById('btn-home').classList.add('hidden');
+
+    // ── INTERNAL ANCHOR LINKS (hero CTA: Meet Stark, View Suit) ──
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
+      link.addEventListener('click', e => {
+        const id = link.getAttribute('href').slice(1);
+        const el = document.getElementById(id);
+        if (el) {
+          e.preventDefault();
+          smoothScrollTo(el);
+        }
+      });
+    });
+
+    // ── FILTER BUTTONS ──
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.dataset.filter;
+        document.querySelectorAll('.suit-card').forEach(card => {
+          card.style.display = (filter === 'all' || card.dataset.status === filter) ? '' : 'none';
+        });
+      });
+    });
+
+    // ── TABLE BAR ANIMATIONS ──
+    function animateBars() {
+      document.querySelectorAll('#specs-table .bar-fill').forEach((bar, i) => {
+        const target = bar.dataset.w;
+        bar.style.width = '0';
+        setTimeout(() => { bar.style.width = target; }, 100 + i * 30);
+      });
+    }
+  </script>
+</body>
+</html>
